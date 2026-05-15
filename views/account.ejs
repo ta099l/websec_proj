@@ -1,0 +1,33 @@
+<%- include('partials/header') %>
+<h1>My account</h1>
+<section class="account-card">
+  <div class="avatar"><%= account.username.slice(0, 1).toUpperCase() %></div>
+  <dl class="account">
+    <dt>Username</dt>
+    <dd><%= account.username %></dd>
+    <dt>Email</dt>
+    <dd><%= account.email %></dd>
+  </dl>
+</section>
+
+<section class="panel">
+  <h2>Change email</h2>
+  <form method="post" action="<%= pathBase %>/change-email">
+    <label>New email
+      <input name="email" type="email" required>
+    </label>
+    <% if (mode === 'secure') { %>
+      <input type="hidden" name="csrf" value="<%= csrfToken %>">
+    <% } %>
+    <button type="submit">Update email</button>
+  </form>
+</section>
+
+<% if (mode === 'vulnerable') { %>
+  <section class="panel warning">
+    <h2>GET-based email change demo</h2>
+    <p>This vulnerable route changes email through a GET request.</p>
+    <a href="/vulnerable/change-email-get?email=csrf-owned@attacker.example">Trigger GET change</a>
+  </section>
+<% } %>
+<%- include('partials/footer') %>

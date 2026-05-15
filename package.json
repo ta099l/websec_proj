@@ -1,0 +1,20 @@
+{
+  "name": "l33t-store",
+  "version": "1.0.0",
+  "description": "A Node.js Express web security teaching project with vulnerable and secure e-commerce flows.",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node app.js",
+    "test": "node scripts/security-smoke.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
+    "cookie-parser": "^1.4.6",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "sqlite3": "^5.1.7"
+  }
+}

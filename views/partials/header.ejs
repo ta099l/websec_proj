@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title || 'L33t Store' %></title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="route-<%= mode %>">
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark">L33T</span>
+      <span>
+        <strong>L33t Store</strong>
+        <small>Web security lab</small>
+      </span>
+    </a>
+    <nav>
+      <a href="<%= pathBase %>/products">Products</a>
+      <a href="<%= pathBase %>/cart">Cart (<%= cartCount %>)</a>
+      <% if (user) { %>
+        <a href="<%= pathBase %>/my-account">My account</a>
+        <form method="post" action="<%= pathBase %>/logout" class="inline">
+          <button type="submit">Log out</button>
+        </form>
+      <% } else { %>
+        <a href="<%= pathBase %>/login">Log in</a>
+      <% } %>
+    </nav>
+  </header>
+  <main class="shell">
+    <div class="route-strip">
+      <span class="mode <%= mode %>"><%= mode %> route group</span>
+      <span class="route-note"><%= mode === 'secure' ? 'Patched controls and server-side validation' : 'Intentionally unsafe lab behavior' %></span>
+    </div>

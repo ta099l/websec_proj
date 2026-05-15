@@ -1,0 +1,21 @@
+<%- include('partials/header') %>
+<h1>Two-factor authentication</h1>
+<p class="hint">Demo code: <code><%= code %></code></p>
+<% if (error) { %>
+  <p class="error"><%= error %></p>
+<% } %>
+<form class="panel" method="post" action="<%= pathBase %>/2fa">
+  <label>2FA code
+    <input name="code" inputmode="numeric">
+  </label>
+  <% if (mode === 'vulnerable') { %>
+    <label>Verify parameter
+      <select name="verify">
+        <option value="true">true</option>
+        <option value="false">false</option>
+      </select>
+    </label>
+  <% } %>
+  <button type="submit">Verify</button>
+</form>
+<%- include('partials/footer') %>

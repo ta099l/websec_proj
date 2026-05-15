@@ -1,0 +1,34 @@
+<%- include('partials/header') %>
+<h1>Log in</h1>
+<p class="lead">Use <code>wiener:peter</code> or <code>carlos:montoya</code>. The vulnerable store exposes selectable auth flaws; the secure store normalizes the same flow.</p>
+<% if (error) { %>
+  <p class="error"><%= error %></p>
+<% } %>
+<% if (subtle) { %>
+  <p class="error"><%= subtle %></p>
+<% } %>
+<form class="panel" method="post" action="<%= pathBase %>/login">
+  <label>Username
+    <input name="username" autocomplete="username" required>
+  </label>
+  <label>Password
+    <input name="password" type="password" autocomplete="current-password" required>
+  </label>
+  <% if (mode === 'vulnerable') { %>
+    <label>Vulnerability demo
+      <select name="scenario">
+        <option value="different">Different username/password responses</option>
+        <option value="subtle">Subtle username enumeration response</option>
+        <option value="timing">Timing username enumeration</option>
+        <option value="broken-bruteforce">Broken brute-force protection</option>
+        <option value="lockout">Account lock enumeration</option>
+      </select>
+    </label>
+  <% } %>
+  <label class="check">
+    <input type="checkbox" name="remember" value="1">
+    Stay logged in
+  </label>
+  <button type="submit">Continue</button>
+</form>
+<%- include('partials/footer') %>

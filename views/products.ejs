@@ -1,0 +1,27 @@
+<%- include('partials/header') %>
+<h1>Products</h1>
+<div class="grid">
+  <% products.forEach((product, index) => { %>
+    <article class="card">
+      <div class="product-art art-<%= index %>">
+        <span><%= product.name.split(' ').slice(0, 2).join(' ') %></span>
+      </div>
+      <h2><%= product.name %></h2>
+      <p><%= product.description %></p>
+      <p class="price"><%= money(product.price_cents) %></p>
+      <form method="post" action="<%= pathBase %>/cart/add">
+        <input type="hidden" name="productId" value="<%= product.id %>">
+        <% if (mode === 'vulnerable') { %>
+          <label>Client price
+            <input name="price_cents" type="number" value="<%= product.price_cents %>">
+          </label>
+        <% } %>
+        <label>Quantity
+          <input name="quantity" type="number" value="1">
+        </label>
+        <button type="submit">Add to cart</button>
+      </form>
+    </article>
+  <% }) %>
+</div>
+<%- include('partials/footer') %>
