@@ -586,8 +586,8 @@ app.use((err, req, res, next) => {
 });
 
 initDb().then(() => {
-  app.listen(PORT, () => {
-    console.log(`L33t Store running at http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`L33t Store running at http://127.0.0.1:${PORT}`);
   });
 }).catch((err) => {
   console.error(err);
