@@ -114,7 +114,7 @@ async function main() {
     const vulnAuth = {};
     res = await request('POST', '/vulnerable/login', { username: 'wiener', password: 'peter', scenario: 'different', remember: '1' }, cookieHeader(vulnAuth));
     storeCookies(vulnAuth, res.setCookie);
-    assert(vulnAuth.stayLoggedIn, 'vulnerable remember-me cookie is issued');
+    assert(vulnAuth['stay-logged-in'], 'vulnerable remember-me cookie is issued');
     res = await request('GET', '/vulnerable/my-account', null, cookieHeader(vulnAuth));
     assert(res.status === 200 && res.body.includes('wiener'), 'vulnerable 2FA can be skipped after password');
     res = await request('POST', '/vulnerable/2fa', { code: '0000', verify: 'false' }, cookieHeader(vulnAuth));
@@ -123,12 +123,12 @@ async function main() {
     const secureAuth = {};
     res = await request('POST', '/secure/login', { username: 'wiener', password: 'peter', remember: '1' }, cookieHeader(secureAuth));
     storeCookies(secureAuth, res.setCookie);
-    assert(!secureAuth.secureStayLoggedIn, 'secure remember-me is not issued before 2FA');
+    assert(!secureAuth['secure-stay-logged-in'], 'secure remember-me is not issued before 2FA');
     res = await request('GET', '/secure/my-account', null, cookieHeader(secureAuth));
     assert(res.status === 302 && res.location === '/secure/login', 'secure account blocks pre-2FA access');
     res = await request('POST', '/secure/2fa', { code: '1337', verify: 'false' }, cookieHeader(secureAuth));
     storeCookies(secureAuth, res.setCookie);
-    assert(secureAuth.secureStayLoggedIn, 'secure remember-me is issued after 2FA');
+    assert(secureAuth['secure-stay-logged-in'], 'secure remember-me is issued after 2FA');
 
     res = await request('POST', '/secure/change-email', { email: 'blocked@example.test' }, cookieHeader(secureAuth));
     assert(res.status === 403, 'secure change email blocks missing CSRF token');

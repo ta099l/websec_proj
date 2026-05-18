@@ -175,10 +175,11 @@ async function currentUser(req, mode) {
 async function hydrateStayLoggedIn(req, mode) {
   if (req.session[`${mode}User`]) return;
 
-  if (mode === 'vulnerable' && req.cookies.stayLoggedIn) {
+  const vulnerableRememberCookie = req.cookies['stay-logged-in'] || req.cookies.stayLoggedIn;
+  if (mode === 'vulnerable' && vulnerableRememberCookie) {
     // VULNERABLE: This cookie is only base64(username:md5(password)).
     // Anyone who knows or guesses the password hash can forge it without the server secret.
-    const decoded = Buffer.from(req.cookies.stayLoggedIn, 'base64').toString('utf8');
+    const decoded = Buffer.from(vulnerableRememberCookie, 'base64').toString('utf8');
     const [username, hash] = decoded.split(':');
     const user = await get('SELECT * FROM users WHERE username = ?', [username]);
     if (user && hash === md5(user.password)) {
@@ -186,10 +187,11 @@ async function hydrateStayLoggedIn(req, mode) {
     }
   }
 
-  if (mode === 'secure' && req.signedCookies.secureStayLoggedIn) {
+  const secureRememberCookie = req.signedCookies['secure-stay-logged-in'] || req.signedCookies.secureStayLoggedIn;
+  if (mode === 'secure' && secureRememberCookie) {
     // PATCH: The secure route stores a random server-verifiable token in a signed cookie.
     // A real app would persist token hashes per device; this demo keeps it in session state.
-    const token = req.signedCookies.secureStayLoggedIn;
+    const token = secureRememberCookie;
     if (req.session.secureRememberToken && timingSafeEqual(token, req.session.secureRememberToken)) {
       const user = await get('SELECT * FROM users WHERE username = ?', [req.session.secureRememberUser]);
       if (user) req.session.secureUser = { id: user.id, username: user.username };
@@ -396,7 +398,7 @@ app.post('/vulnerable/login', async (req, res, next) => {
 
     if (remember && user) {
       // VULNERABLE: Weak stay-logged-in cookie: base64(username:md5(password)).
-      res.cookie('stayLoggedIn', Buffer.from(`${user.username}:${md5(user.password)}`).toString('base64'), {
+      res.cookie('stay-logged-in', Buffer.from(`${user.username}:${md5(user.password)}`).toString('base64'), {
         httpOnly: true,
         sameSite: 'lax'
       });
@@ -494,7 +496,7 @@ app.post('/secure/2fa', async (req, res, next) => {
       const token = crypto.randomBytes(32).toString('hex');
       req.session.secureRememberToken = token;
       req.session.secureRememberUser = user.username;
-      res.cookie('secureStayLoggedIn', token, {
+      res.cookie('secure-stay-logged-in', token, {
         httpOnly: true,
         sameSite: 'lax',
         signed: true
@@ -568,6 +570,7 @@ app.get('/secure/change-email-get', requireAuth('secure'), (req, res) => {
 
 app.post('/vulnerable/logout', (req, res) => {
   delete req.session.vulnerableUser;
+  res.clearCookie('stay-logged-in');
   res.clearCookie('stayLoggedIn');
   res.redirect('/vulnerable/products');
 });
@@ -576,6 +579,7 @@ app.post('/secure/logout', (req, res) => {
   delete req.session.secureUser;
   delete req.session.secureRememberToken;
   delete req.session.secureRememberUser;
+  res.clearCookie('secure-stay-logged-in');
   res.clearCookie('secureStayLoggedIn');
   res.redirect('/secure/products');
 });

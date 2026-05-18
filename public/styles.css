@@ -340,6 +340,10 @@ select {
   font: inherit;
 }
 
+input[type="checkbox"] {
+  width: auto;
+}
+
 input:focus,
 select:focus {
   outline: 3px solid rgba(36, 93, 122, 0.18);
