@@ -12,12 +12,21 @@ const db = new sqlite3.Database(process.env.DB_FILE || path.join(__dirname, 'l33
 const PORT = process.env.PORT || 3000;
 const TWO_FA_CODE = '1337';
 const vulnerableIpFailures = new Map();
+const VULNERABLE_BRUTE_FORCE_LIMIT = 2;
+const VULNERABLE_BRUTE_FORCE_BLOCK_MS = 15000;
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cookieParser('l33t-store-demo-secret'));
 app.use(bodyParser.urlencoded({ extended: false }));
+app.use((req, res, next) => {
+  // Teaching-lab convenience: Burp sometimes reuses stale localhost keep-alive
+  // connections while the Node dev server is being restarted. Closing each
+  // response keeps proxy/browser demos deterministic.
+  res.set('Connection', 'close');
+  next();
+});
 app.use(session({
   secret: 'l33t-store-session-secret',
   resave: false,
@@ -361,25 +370,36 @@ app.post('/vulnerable/login', async (req, res, next) => {
         return render(req, res, 'login', { error: 'Invalid password', subtle: null });
       }
     } else if (scenario === 'broken-bruteforce') {
-      // VULNERABLE: This tries to block brute force by IP after 3 failures, but any
+      // VULNERABLE: This tries to block brute force by IP after 2 failures, but any
       // successful login from the same IP resets the counter. An attacker can alternate
       // "wiener:peter" with guesses for "carlos" to keep the failure count below the limit.
       const ip = req.ip || req.socket.remoteAddress || 'local';
-      const failedAttempts = vulnerableIpFailures.get(ip) || 0;
-      if (failedAttempts >= 3) {
+      const entry = vulnerableIpFailures.get(ip) || { failures: 0, blockedUntil: 0 };
+      if (entry.blockedUntil > Date.now()) {
+        return render(req, res, 'login', { error: 'Too many incorrect logins from your IP. Try again later.', subtle: null });
+      }
+      if (entry.blockedUntil && entry.blockedUntil <= Date.now()) {
+        entry.failures = 0;
+        entry.blockedUntil = 0;
+      }
+      if (entry.failures >= VULNERABLE_BRUTE_FORCE_LIMIT) {
+        entry.blockedUntil = Date.now() + VULNERABLE_BRUTE_FORCE_BLOCK_MS;
+        vulnerableIpFailures.set(ip, entry);
         return render(req, res, 'login', { error: 'Too many incorrect logins from your IP. Try again later.', subtle: null });
       }
       user = await get('SELECT * FROM users WHERE username = ?', [username.trim().toLowerCase()]);
       if (!user) {
-        vulnerableIpFailures.set(ip, failedAttempts + 1);
+        entry.failures += 1;
+        vulnerableIpFailures.set(ip, entry);
         return render(req, res, 'login', { error: 'Invalid username or password', subtle: null });
       }
       const ok = await bcrypt.compare(password, user.password_hash);
       if (!ok) {
-        vulnerableIpFailures.set(ip, failedAttempts + 1);
+        entry.failures += 1;
+        vulnerableIpFailures.set(ip, entry);
         return render(req, res, 'login', { error: 'Invalid username or password', subtle: null });
       }
-      vulnerableIpFailures.set(ip, 0);
+      vulnerableIpFailures.set(ip, { failures: 0, blockedUntil: 0 });
     } else if (scenario === 'subtle') {
       // VULNERABLE: The wording looks generic, but the period reveals whether the username exists.
       if (!user) return render(req, res, 'login', { error: null, subtle: 'Invalid login' });

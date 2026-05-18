@@ -110,16 +110,14 @@ async function main() {
     assert(res.body.includes('Invalid login.</p>'), 'vulnerable subtle enumeration has period');
     res = await request('POST', '/vulnerable/login', { username: 'carlos', password: 'bad-1', scenario: 'broken-bruteforce' });
     assert(res.body.includes('Invalid username or password'), 'vulnerable brute-force demo records first IP failure');
-    res = await request('POST', '/vulnerable/login', { username: 'carlos', password: 'bad-2', scenario: 'broken-bruteforce' });
-    assert(res.body.includes('Invalid username or password'), 'vulnerable brute-force demo records second IP failure');
     res = await request('POST', '/vulnerable/login', { username: 'wiener', password: 'peter', scenario: 'broken-bruteforce' });
     assert(res.status === 302, 'vulnerable brute-force demo resets the IP counter after a valid login');
-    res = await request('POST', '/vulnerable/login', { username: 'carlos', password: 'bad-3', scenario: 'broken-bruteforce' });
+    res = await request('POST', '/vulnerable/login', { username: 'carlos', password: 'bad-2', scenario: 'broken-bruteforce' });
     assert(!res.body.includes('Too many incorrect logins'), 'vulnerable brute-force reset allows more guesses after own login');
-    await request('POST', '/vulnerable/login', { username: 'carlos', password: 'bad-4', scenario: 'broken-bruteforce' });
-    await request('POST', '/vulnerable/login', { username: 'carlos', password: 'bad-5', scenario: 'broken-bruteforce' });
-    res = await request('POST', '/vulnerable/login', { username: 'carlos', password: 'bad-6', scenario: 'broken-bruteforce' });
-    assert(res.body.includes('Too many incorrect logins from your IP'), 'vulnerable brute-force demo blocks after 3 consecutive failures');
+    res = await request('POST', '/vulnerable/login', { username: 'carlos', password: 'bad-3', scenario: 'broken-bruteforce' });
+    assert(res.body.includes('Invalid username or password'), 'vulnerable brute-force demo allows the second consecutive failure');
+    res = await request('POST', '/vulnerable/login', { username: 'carlos', password: 'bad-4', scenario: 'broken-bruteforce' });
+    assert(res.body.includes('Too many incorrect logins from your IP'), 'vulnerable brute-force demo blocks after 2 consecutive failures');
     res = await request('POST', '/secure/login', { username: 'missing', password: 'x' });
     assert(res.body.includes('Invalid username or password'), 'secure login returns generic failure');
 
