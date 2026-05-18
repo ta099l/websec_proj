@@ -11,6 +11,7 @@ const app = express();
 const db = new sqlite3.Database(process.env.DB_FILE || path.join(__dirname, 'l33t-store.sqlite'));
 const PORT = process.env.PORT || 3000;
 const TWO_FA_CODE = '1337';
+const vulnerableIpFailures = new Map();
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -360,24 +361,25 @@ app.post('/vulnerable/login', async (req, res, next) => {
         return render(req, res, 'login', { error: 'Invalid password', subtle: null });
       }
     } else if (scenario === 'broken-bruteforce') {
-      // VULNERABLE: The counter is keyed to the submitted username and resets on small changes.
-      // Attackers can rotate case or add whitespace to avoid protection.
-      req.session.vulnerableFailures = req.session.vulnerableFailures || {};
-      const key = username;
-      user = await get('SELECT * FROM users WHERE username = ?', [username.trim().toLowerCase()]);
-      req.session.vulnerableFailures[key] = req.session.vulnerableFailures[key] || 0;
-      if (req.session.vulnerableFailures[key] >= 3) {
-        return render(req, res, 'login', { error: 'Too many attempts for that exact username spelling', subtle: null });
+      // VULNERABLE: This tries to block brute force by IP after 3 failures, but any
+      // successful login from the same IP resets the counter. An attacker can alternate
+      // "wiener:peter" with guesses for "carlos" to keep the failure count below the limit.
+      const ip = req.ip || req.socket.remoteAddress || 'local';
+      const failedAttempts = vulnerableIpFailures.get(ip) || 0;
+      if (failedAttempts >= 3) {
+        return render(req, res, 'login', { error: 'Too many incorrect logins from your IP. Try again later.', subtle: null });
       }
+      user = await get('SELECT * FROM users WHERE username = ?', [username.trim().toLowerCase()]);
       if (!user) {
-        req.session.vulnerableFailures[key] += 1;
-        return render(req, res, 'login', { error: 'Invalid username', subtle: null });
+        vulnerableIpFailures.set(ip, failedAttempts + 1);
+        return render(req, res, 'login', { error: 'Invalid username or password', subtle: null });
       }
       const ok = await bcrypt.compare(password, user.password_hash);
       if (!ok) {
-        req.session.vulnerableFailures[key] += 1;
-        return render(req, res, 'login', { error: 'Invalid password', subtle: null });
+        vulnerableIpFailures.set(ip, failedAttempts + 1);
+        return render(req, res, 'login', { error: 'Invalid username or password', subtle: null });
       }
+      vulnerableIpFailures.set(ip, 0);
     } else if (scenario === 'subtle') {
       // VULNERABLE: The wording looks generic, but the period reveals whether the username exists.
       if (!user) return render(req, res, 'login', { error: null, subtle: 'Invalid login' });
