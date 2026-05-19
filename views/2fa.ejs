@@ -9,12 +9,17 @@
     <input name="code" inputmode="numeric">
   </label>
   <% if (mode === 'vulnerable') { %>
+    <%# LAB: 2FA simple bypass VULNERABILITY. %>
+    <%# LAB: 2FA broken logic VULNERABILITY. %>
     <label>Verify parameter
       <select name="verify">
         <option value="true">true</option>
         <option value="false">false</option>
       </select>
     </label>
+  <% } else { %>
+    <%# SECURE PATCH: 2FA simple bypass. %>
+    <%# SECURE PATCH: 2FA broken logic. %>
   <% } %>
   <button type="submit">Verify</button>
 </form>

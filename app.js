@@ -187,7 +187,8 @@ async function hydrateStayLoggedIn(req, mode) {
 
   const vulnerableRememberCookie = req.cookies['stay-logged-in'] || req.cookies.stayLoggedIn;
   if (mode === 'vulnerable' && vulnerableRememberCookie) {
-    // VULNERABLE: This cookie is only base64(username:md5(password)).
+    // LAB: Brute-forcing a stay-logged-in cookie VULNERABILITY.
+    // This cookie is only base64(username:md5(password)).
     // Anyone who knows or guesses the password hash can forge it without the server secret.
     const decoded = Buffer.from(vulnerableRememberCookie, 'base64').toString('utf8');
     const [username, hash] = decoded.split(':');
@@ -199,7 +200,8 @@ async function hydrateStayLoggedIn(req, mode) {
 
   const secureRememberCookie = req.signedCookies['secure-stay-logged-in'] || req.signedCookies.secureStayLoggedIn;
   if (mode === 'secure' && secureRememberCookie) {
-    // PATCH: The secure route stores a random server-verifiable token in a signed cookie.
+    // SECURE PATCH: Brute-forcing a stay-logged-in cookie.
+    // The secure route stores a random server-verifiable token in a signed cookie.
     // A real app would persist token hashes per device; this demo keeps it in session state.
     const token = secureRememberCookie;
     if (req.session.secureRememberToken && timingSafeEqual(token, req.session.secureRememberToken)) {
@@ -269,7 +271,10 @@ app.post('/vulnerable/cart/add', async (req, res, next) => {
     req.session.vulnerableCart = req.session.vulnerableCart || {};
     const id = String(product.id);
 
-    // VULNERABLE: Trusts price_cents submitted by the browser and accepts any quantity.
+    // LAB: Excessive trust in client-side controls VULNERABILITY.
+    // Trusts price_cents submitted by the browser.
+    // LAB: High-level logic vulnerability VULNERABILITY.
+    // Accepts any quantity, including negative values that can reduce the cart total.
     // Learners can lower the price or submit negative quantities to reduce the cart total.
     const price = Number(req.body.price_cents);
     const quantity = Number(req.body.quantity || 1);
@@ -294,7 +299,9 @@ app.post('/secure/cart/add', async (req, res, next) => {
     req.session.secureCart = req.session.secureCart || {};
     const id = String(product.id);
 
-    // PATCH: The secure route ignores client-submitted price and clamps quantity.
+    // SECURE PATCH: Excessive trust in client-side controls.
+    // SECURE PATCH: High-level logic vulnerability.
+    // The secure route ignores client-submitted price and clamps quantity.
     // Product price comes from trusted server-side storage, and negative values are rejected.
     const quantity = Math.max(1, Math.min(10, parseInt(req.body.quantity, 10) || 1));
     req.session.secureCart[id] = req.session.secureCart[id] || {
@@ -332,6 +339,8 @@ app.post('/vulnerable/checkout', requireAuth('vulnerable'), (req, res) => {
 app.post('/secure/checkout', requireAuth('secure'), (req, res) => {
   const total = cartTotal(req.session.secureCart || {});
   if (total <= 0) {
+    // SECURE PATCH: High-level logic vulnerability.
+    // Refuses checkout when cart state would produce an empty or invalid total.
     return render(req, res, 'message', {
       title: 'Checkout blocked',
       message: 'The secure checkout refused an empty or invalid cart.'
@@ -354,12 +363,14 @@ app.post('/vulnerable/login', async (req, res, next) => {
     let user = await get('SELECT * FROM users WHERE username = ?', [username]);
 
     if (scenario === 'timing') {
-      // VULNERABLE: Only real users reach bcrypt, so valid usernames take noticeably longer.
+      // LAB: Username enumeration via response timing VULNERABILITY.
+      // Only real users reach bcrypt, so valid usernames take noticeably longer.
       if (!user) return render(req, res, 'login', { error: 'Invalid login', subtle: null });
       const ok = await bcrypt.compare(password, user.password_hash);
       if (!ok) return render(req, res, 'login', { error: 'Invalid login', subtle: null });
     } else if (scenario === 'lockout') {
-      // VULNERABLE: Revealing "account locked" lets attackers enumerate valid accounts.
+      // LAB: Username enumeration via account lock VULNERABILITY.
+      // Revealing "account locked" lets attackers enumerate valid accounts.
       if (user && user.locked_until > Date.now()) {
         return render(req, res, 'login', { error: 'This account is locked', subtle: null });
       }
@@ -370,7 +381,8 @@ app.post('/vulnerable/login', async (req, res, next) => {
         return render(req, res, 'login', { error: 'Invalid password', subtle: null });
       }
     } else if (scenario === 'broken-bruteforce') {
-      // VULNERABLE: This tries to block brute force by IP after 2 failures, but any
+      // LAB: Broken brute-force protection, IP block VULNERABILITY.
+      // This tries to block brute force by IP after 2 failures, but any
       // successful login from the same IP resets the counter. An attacker can alternate
       // "wiener:peter" with guesses for "carlos" to keep the failure count below the limit.
       const ip = req.ip || req.socket.remoteAddress || 'local';
@@ -401,12 +413,14 @@ app.post('/vulnerable/login', async (req, res, next) => {
       }
       vulnerableIpFailures.set(ip, { failures: 0, blockedUntil: 0 });
     } else if (scenario === 'subtle') {
-      // VULNERABLE: The wording looks generic, but the period reveals whether the username exists.
+      // LAB: Username enumeration via subtly different responses VULNERABILITY.
+      // The wording looks generic, but the period reveals whether the username exists.
       if (!user) return render(req, res, 'login', { error: null, subtle: 'Invalid login' });
       const ok = await bcrypt.compare(password, user.password_hash);
       if (!ok) return render(req, res, 'login', { error: null, subtle: 'Invalid login.' });
     } else {
-      // VULNERABLE: Different messages disclose whether the username exists.
+      // LAB: Username enumeration via different responses VULNERABILITY.
+      // Different messages disclose whether the username exists.
       if (!user) return render(req, res, 'login', { error: 'Invalid username', subtle: null });
       const ok = await bcrypt.compare(password, user.password_hash);
       if (!ok) return render(req, res, 'login', { error: 'Invalid password', subtle: null });
@@ -414,12 +428,14 @@ app.post('/vulnerable/login', async (req, res, next) => {
 
     req.session.pendingVulnerable2fa = user.username;
 
-    // VULNERABLE: The app marks the user logged in before 2FA is complete.
+    // LAB: 2FA simple bypass VULNERABILITY.
+    // The app marks the user logged in before 2FA is complete.
     // A learner can pass the password step, skip /vulnerable/2fa, and browse directly to /vulnerable/my-account.
     req.session.vulnerableUser = { id: user.id, username: user.username };
 
     if (remember && user) {
-      // VULNERABLE: Weak stay-logged-in cookie: base64(username:md5(password)).
+      // LAB: Brute-forcing a stay-logged-in cookie VULNERABILITY.
+      // Weak stay-logged-in cookie: base64(username:md5(password)).
       res.cookie('stay-logged-in', Buffer.from(`${user.username}:${md5(user.password)}`).toString('base64'), {
         httpOnly: true,
         sameSite: 'lax'
@@ -445,11 +461,16 @@ app.post('/secure/login', async (req, res, next) => {
     req.session.secureFailures = req.session.secureFailures || {};
     const failureKey = normalizedUsername;
 
-    // PATCH: The secure route uses one generic failure and runs bcrypt for missing users too,
+    // SECURE PATCH: Username enumeration via different responses.
+    // SECURE PATCH: Username enumeration via subtly different responses.
+    // SECURE PATCH: Username enumeration via response timing.
+    // SECURE PATCH: Username enumeration via account lock.
+    // The secure route uses one generic failure and runs bcrypt for missing users too,
     // reducing username enumeration by response text, subtle text, timing, and lockout behavior.
     const ok = await bcrypt.compare(password, hashToCheck);
     if (req.session.secureFailures[failureKey] >= 5 || !user || !ok || user.locked_until > Date.now()) {
-      // PATCH: Brute-force protection is keyed to a normalized identity and uses the same
+      // SECURE PATCH: Broken brute-force protection, IP block.
+      // Brute-force protection is keyed to a normalized identity and uses the same
       // generic response as every other login failure.
       req.session.secureFailures[failureKey] = (req.session.secureFailures[failureKey] || 0) + 1;
       return render(req, res, 'login', { error: 'Invalid username or password', subtle: null });
@@ -459,7 +480,9 @@ app.post('/secure/login', async (req, res, next) => {
     req.session.pendingSecure2fa = user.username;
     req.session.pendingSecureRemember = Boolean(remember);
     if (remember) {
-      // PATCH: Remember-me is recorded as intent only until 2FA succeeds.
+      // SECURE PATCH: 2FA simple bypass.
+      // SECURE PATCH: Brute-forcing a stay-logged-in cookie.
+      // Remember-me is recorded as intent only until 2FA succeeds.
       // Issuing this cookie before 2FA would let it become a 2FA bypass.
     }
     res.redirect('/secure/2fa');
@@ -469,7 +492,8 @@ app.post('/secure/login', async (req, res, next) => {
 });
 
 app.get('/vulnerable/2fa', (req, res) => {
-  // VULNERABLE: Visiting /vulnerable/my-account directly only checks the main session user.
+  // LAB: 2FA simple bypass VULNERABILITY.
+  // Visiting /vulnerable/my-account directly only checks the main session user.
   // This page sets no robust "2FA required" gate for all protected pages.
   render(req, res, '2fa', { error: null, code: TWO_FA_CODE });
 });
@@ -480,7 +504,8 @@ app.post('/vulnerable/2fa', async (req, res, next) => {
     if (!username) return res.redirect('/vulnerable/login');
     const user = await get('SELECT * FROM users WHERE username = ?', [username]);
 
-    // VULNERABLE: The verify parameter decides whether the code is checked.
+    // LAB: 2FA broken logic VULNERABILITY.
+    // The verify parameter decides whether the code is checked.
     // Posting verify=false or omitting normal verification lets the attacker skip 2FA.
     if (req.body.verify === 'false' || req.body.code === TWO_FA_CODE) {
       req.session.vulnerableUser = { id: user.id, username: user.username };
@@ -503,7 +528,9 @@ app.post('/secure/2fa', async (req, res, next) => {
     const username = req.session.pendingSecure2fa;
     if (!username) return res.redirect('/secure/login');
 
-    // PATCH: The secure route ignores client-supplied control parameters and validates only
+    // SECURE PATCH: 2FA simple bypass.
+    // SECURE PATCH: 2FA broken logic.
+    // The secure route ignores client-supplied control parameters and validates only
     // the server-issued pending 2FA challenge plus the expected code.
     if (req.body.code !== TWO_FA_CODE) {
       return render(req, res, '2fa', { error: 'Invalid 2FA code', code: TWO_FA_CODE });
@@ -513,7 +540,8 @@ app.post('/secure/2fa', async (req, res, next) => {
     req.session.secureUser = { id: user.id, username: user.username };
     delete req.session.pendingSecure2fa;
     if (req.session.pendingSecureRemember) {
-      // PATCH: Use a random signed token instead of a forgeable password-derived cookie,
+      // SECURE PATCH: Brute-forcing a stay-logged-in cookie.
+      // Use a random signed token instead of a forgeable password-derived cookie,
       // and issue it only after the second factor is complete.
       const token = crypto.randomBytes(32).toString('hex');
       req.session.secureRememberToken = token;
@@ -551,7 +579,8 @@ app.get('/secure/my-account', requireAuth('secure'), async (req, res, next) => {
 
 app.post('/vulnerable/change-email', requireAuth('vulnerable'), async (req, res, next) => {
   try {
-    // VULNERABLE: No CSRF token is required, so another site can force a logged-in
+    // LAB: CSRF vulnerability with no defenses VULNERABILITY.
+    // No CSRF token is required, so another site can force a logged-in
     // user's browser to POST this form.
     await run('UPDATE users SET email = ? WHERE username = ?', [req.body.email, req.session.vulnerableUser.username]);
     res.redirect('/vulnerable/my-account');
@@ -562,7 +591,8 @@ app.post('/vulnerable/change-email', requireAuth('vulnerable'), async (req, res,
 
 app.post('/secure/change-email', requireAuth('secure'), requireCsrf, async (req, res, next) => {
   try {
-    // PATCH: The secure route requires a per-session CSRF token on state-changing requests.
+    // SECURE PATCH: CSRF vulnerability with no defenses.
+    // The secure route requires a per-session CSRF token on state-changing requests.
     await run('UPDATE users SET email = ? WHERE username = ?', [req.body.email, req.session.secureUser.username]);
     res.redirect('/secure/my-account');
   } catch (err) {
@@ -572,7 +602,8 @@ app.post('/secure/change-email', requireAuth('secure'), requireCsrf, async (req,
 
 app.get('/vulnerable/change-email-get', requireAuth('vulnerable'), async (req, res, next) => {
   try {
-    // VULNERABLE: This route pretends token validation is a POST-only concern, so GET still
+    // LAB: CSRF where token validation depends on request method VULNERABILITY.
+    // This route pretends token validation is a POST-only concern, so GET still
     // changes account state and can be triggered by an image tag or link.
     await run('UPDATE users SET email = ? WHERE username = ?', [req.query.email, req.session.vulnerableUser.username]);
     res.redirect('/vulnerable/my-account');
@@ -582,7 +613,8 @@ app.get('/vulnerable/change-email-get', requireAuth('vulnerable'), async (req, r
 });
 
 app.get('/secure/change-email-get', requireAuth('secure'), (req, res) => {
-  // PATCH: The secure route refuses state changes over GET entirely.
+  // SECURE PATCH: CSRF where token validation depends on request method.
+  // The secure route refuses state changes over GET entirely.
   res.status(405);
   render(req, res, 'message', {
     title: 'Method not allowed',

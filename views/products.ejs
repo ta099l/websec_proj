@@ -12,9 +12,17 @@
       <form method="post" action="<%= pathBase %>/cart/add">
         <input type="hidden" name="productId" value="<%= product.id %>">
         <% if (mode === 'vulnerable') { %>
+          <%# LAB: Excessive trust in client-side controls VULNERABILITY. %>
           <label>Client price
             <input name="price_cents" type="number" value="<%= product.price_cents %>">
           </label>
+        <% } else { %>
+          <%# SECURE PATCH: Excessive trust in client-side controls. %>
+        <% } %>
+        <% if (mode === 'vulnerable') { %>
+          <%# LAB: High-level logic vulnerability VULNERABILITY. %>
+        <% } else { %>
+          <%# SECURE PATCH: High-level logic vulnerability. %>
         <% } %>
         <label>Quantity
           <input name="quantity" type="number" value="1">

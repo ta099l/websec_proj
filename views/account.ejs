@@ -13,6 +13,11 @@
 <section class="panel">
   <h2>Change email</h2>
   <form method="post" action="<%= pathBase %>/change-email">
+    <% if (mode === 'vulnerable') { %>
+      <%# LAB: CSRF vulnerability with no defenses VULNERABILITY. %>
+    <% } else { %>
+      <%# SECURE PATCH: CSRF vulnerability with no defenses. %>
+    <% } %>
     <label>New email
       <input name="email" type="email" required>
     </label>
@@ -25,9 +30,12 @@
 
 <% if (mode === 'vulnerable') { %>
   <section class="panel warning">
+    <%# LAB: CSRF where token validation depends on request method VULNERABILITY. %>
     <h2>GET-based email change demo</h2>
     <p>This vulnerable route changes email through a GET request.</p>
     <a href="/vulnerable/change-email-get?email=csrf-owned@attacker.example">Trigger GET change</a>
   </section>
+<% } else { %>
+  <%# SECURE PATCH: CSRF where token validation depends on request method. %>
 <% } %>
 <%- include('partials/footer') %>
